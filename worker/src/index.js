@@ -23,7 +23,11 @@ export default {
       return json({
         status: "ONLINE",
         name: "AMAN MONEY MAKER AI",
-        brain: "Gemini"
+        brain: "Gemini",
+        models: [
+          "gemini-3.8-flash",
+          "gemini-3.5-flash-lite"
+        ]
       });
     }
 
@@ -32,7 +36,9 @@ export default {
     }
 
     if (!env.GEMINI_API_KEY) {
-      return json({ error: "API Key not configured" }, 500);
+      return json({
+        error: "API Key not configured"
+      }, 500);
     }
 
     try {
@@ -40,7 +46,9 @@ export default {
       const task = String(body.task || "").slice(0, 4000);
 
       if (!task.trim()) {
-        return json({ error: "Please enter a task" }, 400);
+        return json({
+          error: "Please enter a task"
+        }, 400);
       }
 
       const prompt = `
@@ -59,61 +67,108 @@ Rules:
 1. Never invent customers or payments.
 2. Never promise guaranteed income.
 3. Never contact anyone automatically.
-4. Give practical, affordable solutions.
+4. Give practical and affordable solutions.
 5. Respond in simple Hindi or Hinglish.
+6. Give clear step-by-step instructions.
 
 USER TASK:
 ${task}
 `;
 
-      const model = env.GEMINI_MODEL || "gemini-3.8-flash";
+      const models = [
+        env.GEMINI_MODEL || "gemini-3.8-flash",
+        "gemini-3.5-flash-lite"
+      ];
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            contents: [
+      let lastError = "All Gemini models failed";
+
+      for (const model of [...new Set(models)]) {
+        try {
+          const controller = new AbortController();
+
+          const timeout = setTimeout(() => {
+            controller.abort();
+          }, 20000);
+
+          let response;
+
+          try {
+            response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
               {
-                parts: [{ text: prompt }]
+                method: "POST",
+                signal: controller.signal,
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      parts: [
+                        { text: prompt }
+                      ]
+                    }
+                  ],
+                  generationConfig: {
+                    maxOutputTokens: 1200
+                  }
+                })
               }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 1200
-            }
-          })
+            );
+          } finally {
+            clearTimeout(timeout);
+          }
+
+          const raw = await response.text();
+
+          let result;
+
+          try {
+            result = JSON.parse(raw);
+          } catch {
+            lastError = "Gemini returned an invalid response";
+            continue;
+          }
+
+          if (!response.ok) {
+            lastError =
+              result.error?.message ||
+              `Gemini HTTP Error ${response.status}`;
+
+            continue;
+          }
+
+          const answer = result.candidates?.[0]?.content?.parts
+            ?.map(part => part.text || "")
+            .join("\n");
+
+          if (!answer) {
+            lastError = "AI returned no text";
+            continue;
+          }
+
+          return json({
+            success: true,
+            answer,
+            model
+          });
+        } catch (error) {
+          lastError =
+            error.name === "AbortError"
+              ? `${model} timed out`
+              : error.message;
         }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        return json({
-          error: "Gemini API Error",
-          details: result.error?.message || "Request failed"
-        }, response.status);
-      }
-
-      const answer = result.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("\n");
-
-      if (!answer) {
-        return json({ error: "AI returned no text" }, 502);
       }
 
       return json({
-        success: true,
-        answer,
-        model
-      });
+        success: false,
+        error: "All Gemini models are currently unavailable",
+        details: lastError
+      }, 502);
 
     } catch (error) {
       return json({
+        success: false,
         error: "Server Error",
         details: error.message
       }, 500);
