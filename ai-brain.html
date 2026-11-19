@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>AMAN MONEY MAKER AI</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: #08111f;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 700px;
+  margin: auto;
+}
+
+h1 {
+  color: #00d9ff;
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: #aab8cc;
+}
+
+.card {
+  background: #14243a;
+  padding: 20px;
+  border-radius: 15px;
+  margin-top: 20px;
+}
+
+textarea {
+  width: 100%;
+  height: 130px;
+  padding: 14px;
+  border: 1px solid #294563;
+  border-radius: 10px;
+  background: #08111f;
+  color: white;
+  font-size: 16px;
+  resize: vertical;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 10px;
+  background: #00c8ed;
+  color: #00111c;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+#result {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  color: #00e6a0;
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>AMAN MONEY MAKER AI</h1>
+
+<p class="subtitle">
+Your Digital Business Assistant
+</p>
+
+<div class="card">
+
+<h3>AI को अपना काम बताओ</h3>
+
+<textarea id="task"
+placeholder="उदाहरण: Karari market में कपड़ों की दुकानों को वेबसाइट बेचने की योजना बनाओ।">
+</textarea>
+
+<button id="runBtn" onclick="runAI()">
+AI से काम करवाओ
+</button>
+
+<p id="status" class="status"></p>
+
+</div>
+
+<div class="card">
+
+<h3>AI का जवाब</h3>
+
+<div id="result">
+यहाँ AI का जवाब दिखाई देगा।
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const WORKER_URL = "PASTE_YOUR_WORKER_URL_HERE";
+
+async function runAI() {
+
+  const task = document.getElementById("task").value.trim();
+  const result = document.getElementById("result");
+  const status = document.getElementById("status");
+  const button = document.getElementById("runBtn");
+
+  if (!task) {
+    alert("पहले अपना काम लिखो।");
+    return;
+  }
+
+  if (WORKER_URL === "PASTE_YOUR_WORKER_URL_HERE") {
+    alert("पहले अपना Cloudflare Worker URL डालो।");
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "AI काम कर रहा है...";
+  result.textContent = "कृपया इंतजार करें...";
+
+  try {
+
+    const response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        task: task
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.details || data.error || "AI request failed"
+      );
+    }
+
+    result.textContent = data.answer;
+    status.textContent = "AI सफलतापूर्वक काम कर चुका है।";
+
+  } catch (error) {
+
+    result.textContent = "Error: " + error.message;
+    status.textContent = "AI से कनेक्शन नहीं हो पाया।";
+
+  } finally {
+
+    button.disabled = false;
+
+  }
+}
+
+</script>
+
+</body>
+</html>
