@@ -66,7 +66,7 @@ USER TASK:
 ${task}
 `;
 
-      const model = env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+      const model = env.GEMINI_MODEL || "gemini-3.8-flash";
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
